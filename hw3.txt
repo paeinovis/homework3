@@ -1,0 +1,98 @@
+
+class LogGrowth:
+# modified from BirthDeath class
+
+"""
+simulate the birth-death process using Gillespie algorithm.
+"""
+
+def __init__(self, comp_rate, birth_rate, death_rate=1., N0=1):
+"""
+initialize the population.
+inputs:
+comp_rate: float, competition interactions.
+birth_rate: float, birth rate per individual.
+death_rate: float, death rate per individual.
+N0: int, initial population size.
+"""
+self.comp_rate = comp_rate
+self.birth_rate = birth_rate
+self.death_rate = death_rate
+self.pop_size = N0 # current population size
+self.time = 0. # time since beginning of simulation
+self.pop_hist = [N0] # list to record history of population size
+self.time_hist = [0.] # list to record time of all events
+
+def next_event(self):
+"""
+generate the waiting time and identity of the next event.
+outputs:
+tau: float, waiting time before next event.
+event: int, 0 means birth and 1 means death.
+"""
+k_b = self.pop_size * self.birth_rate # total birth rate
+k_d = self.pop_size * self.death_rate # total death rate
+k_c = self.pop_size ** 2 * self.comp_rate # total competition interactions
+taus = np.random.exponential([1/k_b, 1/k_d]) # draw two random numbers from exponential dist
+tau_b, tau_d = taus[0], taus[1]
+tau_c = np.random.lognormal([1/k_c])
+np.append(taus, tau_c)
+if tau_c <= tau_b and tau_c <= tau_d: # competition event first
+event = 1
+return tau_c, event
+elif tau_b <= tau_d and tau_b <= tau_c: # birth happens first
+event = 0
+return tau_b, event
+elif tau_d <= tau_b and tau_d <= tau_c: # death happens first
+event = 1
+return tau_d, event
+
+
+def run(self, T):
+"""
+run simulation until time T since the beginning.
+inputs:
+T: float, time since the beginning of the simulation.
+"""
+while self.time < T:
+if self.pop_size == 0: # population goes extinct
+break # exit while loop to end simulation
+tau, event = self.next_event() # draw next event
+self.time += tau # update time
+if event == 0:
+self.pop_size += 1 # birth
+elif event == 1:
+self.pop_size -= 1 # death
+self.time_hist.append(self.time) # record time of event
+self.pop_hist.append(self.pop_size) # record population size after event
+
+#%%
+
+beta = 2. # growth rate
+delta = 1. # death rate
+
+dt = 0.01 # time step size
+T = 10. # total time to solve the equation for
+
+#%%
+
+chi = .01
+trials = 5 # number of simulations to repeat
+bd_list = []
+
+for i in range(trials):
+bd1 = LogGrowth(beta, delta, chi)
+bd1.run(T)
+print(f'current time = {bd1.time}, current population size = {bd1.pop_size}')
+bd_list.append(bd1)
+
+#%%
+
+plt.figure()
+for bd1 in bd_list:
+plt.plot(bd1.time_hist, bd1.pop_hist, drawstyle='steps-post') # stochastic realizations
+plt.axhline(y=100, color="black")
+plt.yscale('log')
+plt.xlabel('time')
+plt.ylabel('population size')
+plt.show()
